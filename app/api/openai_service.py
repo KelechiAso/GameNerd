@@ -67,7 +67,6 @@ SCHEMA_DATA_TEAM_NEWS = {
                    "news_articles": {"type": "array", "items": {"type": "object", "properties": {"title": {"type": "string"}, "source_name": {"type": ["string", "null"]}, "published_date": {"type": ["string", "null"], "format": "date-time"}, "url": {"type": ["string", "null"], "format": "uri"}, "summary": {"type": "string"}}, "required": ["title", "summary"]}}},
     "required": ["team_name", "news_articles"]
 }
-# (Other schemas like Results, Team Stats, etc. would be included here as in the original file)
 
 TOOLS_AVAILABLE = [
     {"type": "function", "function": {"name": "present_h2h_comparison", "description": "Presents a head-to-head comparison between two teams.", "parameters": SCHEMA_DATA_H2H}},
@@ -75,7 +74,7 @@ TOOLS_AVAILABLE = [
     {"type": "function", "function": {"name": "show_match_schedule", "description": "Shows a schedule of upcoming matches for a specific day or period.", "parameters": SCHEMA_DATA_MATCH_SCHEDULE_TABLE}},
     {"type": "function", "function": {"name": "get_player_profile", "description": "Retrieves detailed information about a sports player.", "parameters": SCHEMA_DATA_PLAYER_PROFILE}},
     {"type": "function", "function": {"name": "get_team_news", "description": "Fetches latest news articles for a specific sports team.", "parameters": SCHEMA_DATA_TEAM_NEWS}},
-    # (The full list of tools from the original file would be here)
+  
 ]
 
 TOOL_NAME_TO_COMPONENT_TYPE = {
@@ -84,7 +83,6 @@ TOOL_NAME_TO_COMPONENT_TYPE = {
     "show_match_schedule": "match_schedule_table",
     "get_player_profile": "player_profile_card",
     "get_team_news": "news_article_list",
-    # (The full mapping from the original file would be here)
 }
 print("--- openai_service.py: Schemas and Tools DEFINED ---")
 
@@ -105,12 +103,12 @@ async def gather_real_time_data(user_query: str, conversation_history: List[Dict
     """
     
     messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(conversation_history[-6:]) # Use last 3 turns for context
+    messages.extend(conversation_history[-6:])
     messages.append({"role": "user", "content": user_query})
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-search-preview", # Using gpt-4o for its advanced reasoning and integrated search
+            model="gpt-4o-mini-search-preview", # Using gpt-4o for its advanced reasoning and integrated search
             messages=messages,
         )
         gathered_data = response.choices[0].message.content
