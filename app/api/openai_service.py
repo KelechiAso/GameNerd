@@ -109,6 +109,9 @@ async def gather_real_time_data(user_query: str, conversation_history: List[Dict
     try:
         response = await client.chat.completions.create(
             model="gpt-4o-mini-search-preview", # Using gpt-4o for its advanced reasoning and integrated search
+            web_search_options={
+                "search_context_size": "low",
+            },
             messages=messages,
         )
         gathered_data = response.choices[0].message.content
