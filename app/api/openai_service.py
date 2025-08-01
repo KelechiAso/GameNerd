@@ -218,7 +218,6 @@ async def generate_final_response_with_tools(
             print(f">>> UI component generated: '{component_type}'")
         else:
             print(">>> No tool call was made. Response is text-only.")
-            # If no tool was called and no text was generated, use a fallback.
             if not response_message.content:
                  final_response["reply"] = "I've processed your request."
 

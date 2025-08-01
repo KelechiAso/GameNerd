@@ -139,7 +139,41 @@
         .user-message { background-color: #2a392a; color: #e0f0e0; margin-left: auto; border-bottom-right-radius: 5px; }
         .bot-message { background-color: #2a2c3b; color: #d0d0e0; margin-right: auto; border-bottom-left-radius: 5px; }
         .error-message { color: #ff8a80; /* Softer red */ font-style: italic; border: 1px solid #ff8a80; background-color: #3c2f2f; }
+        
+        /* New styling for structured bot messages to make them more modular */
+        /* --- START OF NEW/EDITED CSS --- */
+        .bot-message-structured {
+            background-color: #2a2c3b;
+            color: #d0d0e0;
+            margin-right: auto;
+            padding: 15px; /* More padding for a card-like look */
+            border-bottom-left-radius: 5px;
+        }
 
+        .bot-message-structured h3 { /* Use H3 for sport titles */
+            color: #4CAF50;
+            border-bottom: 1px solid #3a3a5a;
+            padding-bottom: 5px;
+            margin-top: 10px;
+        }
+        
+        .bot-message-structured ul {
+            list-style: none; /* Remove default bullet points */
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .bot-message-structured ul li {
+            padding: 5px 0;
+            border-left: 2px solid #5a5a70;
+            padding-left: 10px;
+            margin-bottom: 5px;
+        }
+
+        .bot-message-structured ul li strong {
+            color: #e0e0e0;
+        }
+        /* --- END OF NEW/EDITED CSS --- */
 
         #loadingIndicator { display: none; text-align: center; padding: 10px; color: #aaa; font-style: italic; }
 
@@ -256,17 +290,83 @@
 
 
         // --- Core Functions ---
-        function appendMessage(text, sender = 'bot', isError = false) {
+        // EDITED: This function now accepts an optional parameter to render as HTML
+        function appendMessage(content, sender = 'bot', isError = false, isHtml = false) {
             const msgDiv = document.createElement('div');
-            msgDiv.textContent = text; // Using textContent for security against XSS
-            msgDiv.classList.add('message');
-            msgDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            
+            if (isHtml) {
+                // Use innerHTML for trusted HTML content
+                msgDiv.innerHTML = content;
+                // Add new class for structured styling
+                msgDiv.classList.add('message', 'bot-message-structured');
+            } else {
+                // Use textContent for plain text messages for security
+                msgDiv.textContent = content;
+                msgDiv.classList.add('message');
+                msgDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            }
+
             if (isError) {
                 msgDiv.classList.add('error-message');
             }
             chatbox.appendChild(msgDiv);
             chatbox.scrollTop = chatbox.scrollHeight;
         }
+
+        // NEW FUNCTION: A function to parse your LLM text response into HTML
+        // This is the core logic to create the modular output you want.
+        function parseAndFormatLLMResponse(text) {
+            const lines = text.split('\n');
+            let html = '';
+            let currentList = [];
+            let inList = false;
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+
+                // Check for headings (e.g., "**Golf - Wyndham Championship**")
+                if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+                    if (inList) {
+                        html += `<ul>${currentList.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                        currentList = [];
+                        inList = false;
+                    }
+                    html += `<h3>${safeText(trimmedLine.slice(2, -2))}</h3>`;
+                } 
+                // Check for bullet points (e.g., "* Description:")
+                else if (trimmedLine.startsWith('*')) {
+                    const content = safeText(trimmedLine.slice(1).trim());
+                    currentList.push(content);
+                    inList = true;
+                }
+                // Check for horizontal rules (e.g., "***")
+                else if (trimmedLine === '***') {
+                    if (inList) {
+                        html += `<ul>${currentList.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                        currentList = [];
+                        inList = false;
+                    }
+                    html += '<hr>';
+                }
+                // Handle regular paragraphs
+                else if (trimmedLine !== '') {
+                     if (inList) {
+                        html += `<ul>${currentList.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                        currentList = [];
+                        inList = false;
+                    }
+                    html += `<p>${safeText(trimmedLine)}</p>`;
+                }
+            }
+
+            // Close any remaining list
+            if (inList) {
+                html += `<ul>${currentList.map(item => `<li>${item}</li>`).join('')}</ul>`;
+            }
+
+            return html;
+        }
+        // --- END OF NEW FUNCTION ---
 
         async function sendMessage() {
             const query = userInput.value.trim();
@@ -315,7 +415,9 @@
                 console.log("Data received and parsed from /chat:", data);
 
                 if (data && typeof data.reply !== 'undefined') {
-                    appendMessage(data.reply, 'bot');
+                    // EDITED: Now using the new `parseAndFormatLLMResponse` function
+                    const formattedHtml = parseAndFormatLLMResponse(data.reply);
+                    appendMessage(formattedHtml, 'bot', false, true); // The last parameter `true` tells it to render as HTML
                 } else {
                     console.error("Parsed data is missing 'reply' field or data itself is null/undefined:", data);
                     appendMessage("Received an incomplete response structure from the bot.", 'bot', true);
@@ -340,7 +442,10 @@
             }
         }
 
+        // ... (rest of your functions for renderUiComponent, safeText, and the various generate...HTML functions remain unchanged)
+        
         function renderUiComponent(uiData) {
+            // ... (rest of your renderUiComponent function is unchanged)
             uiComponentsDiv.innerHTML = ''; 
 
             if (!uiData || typeof uiData.component_type === 'undefined' || typeof uiData.data === 'undefined') {
@@ -416,14 +521,15 @@
             }
         }
 
-        // --- HTML Generation Functions ---
         function safeText(text) {
-                if (text === null || typeof text === 'undefined') return 'N/A';
-                const div = document.createElement('div');
-                div.textContent = String(text);
-                return div.innerHTML;
+             if (text === null || typeof text === 'undefined') return 'N/A';
+             const div = document.createElement('div');
+             div.textContent = String(text);
+             return div.innerHTML;
         }
 
+        // All of your generate...HTML functions go here, unchanged.
+        // ... (e.g., generateH2HTableHTML, generateScheduleTableHTML, etc.)
         function generateH2HTableHTML(data) {
             if (!data || !data.h2h_summary) return '<p class="error-message">H2H data is incomplete.</p>';
             let html = '<h4>Head-to-Head Comparison</h4>';
